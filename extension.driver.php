@@ -23,6 +23,7 @@
 		
 		public function uninstall() {
 			$this->_Parent->Database->query("DROP TABLE `tbl_fields_brightcove_status`");
+			$this->_Parent->Database->query("DROP TABLE `tbl_brightcove`");
 		}
 		
 		public function install() {
@@ -32,6 +33,25 @@
 					`field_id` int(11) unsigned NOT NULL,
 					PRIMARY KEY  (`id`),
 					KEY `field_id` (`field_id`)
+				)
+			");
+			
+			$this->_Parent->Database->query("
+				CREATE TABLE `tbl_brightcove` (
+					`id` int(11) NOT NULL auto_increment,
+					`entry_id` int(11) NOT NULL,
+					`field_id` int(11) NOT NULL,
+					`video_id` varchar(32) default NULL,
+					`attempts` int(11) NOT NULL default '0',
+					`file` text,
+					`uploading` enum('yes','no') NOT NULL default 'no',
+					`encoding` enum('yes','no') NOT NULL default 'no',
+					`completed` enum('yes','no') NOT NULL default 'no',
+					`failed` enum('yes','no') NOT NULL default 'no',
+					PRIMARY KEY  (`id`),
+					KEY `entry_id` (`entry_id`),
+					KEY `field_id` (`field_id`),
+					KEY `video_id` (`video_id`)
 				)
 			");
 			
