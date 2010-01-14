@@ -21,11 +21,19 @@
 		}
 		
 		protected function __trigger() {
+			header('content-type: text/plain');
+			
 			$db = Frontend::Database();
 			$conf = Frontend::Configuration();
 			$page = Frontend::Page();
 			$driver = $page->ExtensionManager->create('brightcove');
 			$api = new Echove($driver->getReadApiKey(), $driver->getWriteApiKey());
+			$stats = array(
+				'uploading'	=> array(),
+				'starting'	=> array(),
+				'encoding'	=> array(),
+				'completed'	=> array()
+			);
 			
 			// Attempt to upload a video x number of times:
 			$max_attempts = 5;
@@ -60,6 +68,10 @@
 				if ($id) {
 					$data['video_id'] = $id;
 					$data['uploading'] = 'yes';
+					$stats['starting'][] = sprintf(
+						'Entry #%s, Video #%d, File %s',
+						$data['entry_id'], $data['video_id'], basename($data['file'])
+					);
 				}
 				
 				else {
@@ -92,14 +104,26 @@
 				
 				if ($status == 'UPLOADING') {
 					$data['uploading'] = 'yes';
+					$stats['uploading'][] = sprintf(
+						'Entry #%s, Video #%d, File %s',
+						$data['entry_id'], $data['video_id'], basename($data['file'])
+					);
 				}
 				
 				else if ($status == 'PROCESSING') {
 					$data['encoding'] = 'yes';
+					$stats['encoding'][] = sprintf(
+						'Entry #%s, Video #%d, File %s',
+						$data['entry_id'], $data['video_id'], basename($data['file'])
+					);
 				}
 				
 				else if ($status == 'COMPLETE') {
 					$data['completed'] = 'yes';
+					$stats['completed'][] = sprintf(
+						'Entry #%s, Video #%d, File %s',
+						$data['entry_id'], $data['video_id'], basename($data['file'])
+					);
 				}
 				
 				else {
@@ -108,6 +132,30 @@
 				
 				$db->insert($data, 'tbl_brightcove', true);
 			}
+			
+			$template = "
+%d videos uploading (%d just started):
+	%s
+	
+%d videos are being encoded:
+	%s
+
+%d videos have been finished:
+	%s
+			";
+			
+			printf(
+				trim($template),
+				count($stats['uploading']),
+				count($stats['starting']),
+				implode("\n\t", $stats['uploading']),
+				count($stats['encoding']),
+				implode("\n\t", $stats['encoding']),
+				count($stats['completed']),
+				implode("\n\t", $stats['completed'])
+			);
+			
+			exit;
 		}
 	}
 	

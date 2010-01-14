@@ -89,6 +89,7 @@
 			$value = $this->_driver->getVideoStatus($entry_id);
 			
 			switch ($value) {
+				case 'none':
 				case 'completed':
 					return;
 					break;

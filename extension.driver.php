@@ -97,7 +97,7 @@
 			);
 			
 			foreach ($data as $key => &$value) {
-				$value = $config->get($key, 'neatify');
+				$value = $config->get($key, 'brightcove');
 			}
 			
 			return $data;
@@ -106,25 +106,25 @@
 		public function getReadApiKey() {
 			$config = $this->_Parent->Configuration;
 			
-			return $config->get('read-api-key', 'neatify');
+			return $config->get('read-api-key', 'brightcove');
 		}
 		
 		public function getWriteApiKey() {
 			$config = $this->_Parent->Configuration;
 			
-			return $config->get('write-api-key', 'neatify');
+			return $config->get('write-api-key', 'brightcove');
 		}
 		
 		public function getBackendPlayerId() {
 			$config = $this->_Parent->Configuration;
 			
-			return $config->get('backend-player-id', 'neatify');
+			return $config->get('backend-player-id', 'brightcove');
 		}
 		
 		public function getFrontendPlayerId() {
 			$config = $this->_Parent->Configuration;
 			
-			return $config->get('frontend-player-id', 'neatify');
+			return $config->get('frontend-player-id', 'brightcove');
 		}
 		
 		public function addCustomPreferenceFieldsets($context) {
@@ -179,7 +179,7 @@
 				}
 				
 				$label = Widget::Label(__($item['label']));
-				$name = 'settings[neatify][' . $item['name'] . ']';
+				$name = 'settings[brightcove][' . $item['name'] . ']';
 				
 				$input = Widget::Input($name, $item['value']);
 				
