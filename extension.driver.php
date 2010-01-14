@@ -74,6 +74,11 @@
 					'page'		=> '/publish/',
 					'delegate'	=> 'UploadField_PostProccessFile',
 					'callback'	=> 'postProccessFile'
+				),
+				array(
+					'page'		=> '/system/preferences/',
+					'delegate'	=> 'AddCustomPreferenceFieldsets',
+					'callback'	=> 'addCustomPreferenceFieldsets'
 				)
 			);
 		}
@@ -82,20 +87,107 @@
 		Preferences:
 	-------------------------------------------------------------------------*/
 		
+		public function getPreferencesData() {
+			$config = $this->_Parent->Configuration;
+			$data = array(
+				'read-api-key'			=> '',
+				'write-api-key'			=> '',
+				'backend-player-id'		=> '',
+				'frontend-player-id'	=> ''
+			);
+			
+			foreach ($data as $key => &$value) {
+				$value = $config->get($key, 'neatify');
+			}
+			
+			return $data;
+		}
+		
 		public function getReadApiKey() {
-			return '5Ri7QxyT2IKuywpUW0fb1jFveEG2R_kWRRU2ZJAdeg8.';
+			$config = $this->_Parent->Configuration;
+			
+			return $config->get('read-api-key', 'neatify');
 		}
 		
 		public function getWriteApiKey() {
-			return 'EyceGZkNMBKgILJ4H1g3XnpgCsiIvEErFaYz5up-KqaI2IDbbQF6rA..';
+			$config = $this->_Parent->Configuration;
+			
+			return $config->get('write-api-key', 'neatify');
 		}
 		
 		public function getBackendPlayerId() {
-			return '61274950001';
+			$config = $this->_Parent->Configuration;
+			
+			return $config->get('backend-player-id', 'neatify');
 		}
 		
 		public function getFrontendPlayerId() {
-			return '61274950001';
+			$config = $this->_Parent->Configuration;
+			
+			return $config->get('frontend-player-id', 'neatify');
+		}
+		
+		public function addCustomPreferenceFieldsets($context) {
+			$data = $this->getPreferencesData();
+			$page = Administration::instance()->Page;
+			$page->addStylesheetToHead(
+				URL . '/extensions/neatify/assets/preferences.css', 'screen', 250
+			);
+			
+			$fieldset = new XMLElement('fieldset');
+			$fieldset->setAttribute('class', 'settings');
+			$fieldset->appendChild(new XMLElement('legend', 'Brightcove'));
+			
+			$this->buildPreferences(
+				__('Interface'), $fieldset,
+				array(
+					array(
+						'label'		=> 'Read API Key',
+						'name'		=> 'read-api-key',
+						'value'		=> $data['read-api-key']
+					),
+					array(
+						'label'		=> 'Write API Key',
+						'name'		=> 'write-api-key',
+						'value'		=> $data['write-api-key']
+					),
+					array(
+						'label'		=> 'Backend Player ID',
+						'name'		=> 'backend-player-id',
+						'value'		=> $data['backend-player-id']
+					),
+					array(
+						'label'		=> 'Frontend Player ID',
+						'name'		=> 'frontend-player-id',
+						'value'		=> $data['frontend-player-id']
+					)
+				)
+			);
+			
+			$context['wrapper']->appendChild($fieldset);
+		}
+		
+		public function buildPreferences($title, $fieldset, $data) {
+			$row = null;
+			
+			foreach ($data as $index => $item) {
+				if ($index % 2 == 0) {
+					if ($row) $fieldset->appendChild($row);
+					
+					$row = new XMLElement('div');
+					$row->setAttribute('class', 'group');
+				}
+				
+				$label = Widget::Label(__($item['label']));
+				$name = 'settings[neatify][' . $item['name'] . ']';
+				
+				$input = Widget::Input($name, $item['value']);
+				
+				$label->appendChild($input);
+				$row->appendChild($label);
+			}
+			
+			$fieldset->appendChild($row);
 		}
 		
 	/*-------------------------------------------------------------------------
