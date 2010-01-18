@@ -22,8 +22,8 @@
 		}
 		
 		public function uninstall() {
-			$this->_Parent->Database->query("DROP TABLE `tbl_fields_brightcove_status`");
-			$this->_Parent->Database->query("DROP TABLE `tbl_brightcove`");
+			//$this->_Parent->Database->query("DROP TABLE `tbl_fields_brightcove_status`");
+			//$this->_Parent->Database->query("DROP TABLE `tbl_brightcove`");
 		}
 		
 		public function install() {
@@ -37,7 +37,7 @@
 			");
 			
 			$this->_Parent->Database->query("
-				CREATE TABLE `tbl_brightcove` (
+				CREATE TABLE IF NOT EXISTS `tbl_brightcove` (
 					`id` int(11) NOT NULL auto_increment,
 					`entry_id` int(11) NOT NULL,
 					`field_id` int(11) NOT NULL,
@@ -257,6 +257,41 @@
 			
 			else {
 				return 'queued';
+			}
+		}
+		
+		public function appendFormattedElement($context) {
+			$db = $context['parent']->Database;
+			$data = $context['data'];
+			$wrapper = $context['wrapper'];
+			
+			if (!preg_match('/^video\//i', $data['mimetype'])) return;
+			
+			$row = $db->fetchRow(0, sprintf(
+				"
+					SELECT
+						d.*
+					FROM
+						`tbl_brightcove` AS d
+					WHERE
+						d.entry_id = '%d'
+						AND d.field_id = '%d'
+				",
+				$context['entry_id'],
+				$context['field_id']
+			));
+			
+			// Show preview:
+			if ($row['completed'] == 'yes') {
+				$api = new Echove($this->getReadApiKey(), $this->getWriteApiKey());
+				$code = $api->embed('video', $this->getBackendPlayerId(), $row['video_id'], array(
+					'width'		=> 320,
+					'height'	=> 240
+				));
+				
+				$embed = new XMLElement('brightcove');
+				$embed->setValue($code);
+				$wrapper->appendChild($embed);
 			}
 		}
 		
