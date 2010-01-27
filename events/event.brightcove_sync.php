@@ -1,6 +1,7 @@
 <?php
 	
 	require_once(EXTENSIONS . '/brightcove/lib/echove.php');
+	require_once(EXTENSIONS . '/symql/lib/class.symql.php');
 	
 	class EventBrightcove_Sync extends Event {
 		public static function about(){
@@ -21,13 +22,14 @@
 		}
 		
 		protected function __trigger() {
+			// This header is not to be removed.
 			header('content-type: text/plain');
 			
 			$db = Frontend::Database();
 			$conf = Frontend::Configuration();
 			$page = Frontend::Page();
 			$driver = $page->ExtensionManager->create('brightcove');
-			$api = new Echove($driver->getReadApiKey(), $driver->getWriteApiKey());
+			$api = $driver->getAPI();
 			$stats = array(
 				'uploading'	=> array(),
 				'starting'	=> array(),
@@ -39,22 +41,25 @@
 			$max_attempts = 5;
 			
 			// Upload x number of videos at a time, makes the job execute faster:
-			$upload_limit = 10;
+			$upload_limit = 2;
 			
 			// Upload files:
-			$videos = $db->fetch("
-				SELECT
-					d.*
-				FROM
-					`tbl_brightcove` AS d
-				WHERE
-					d.failed = 'no'
-					AND d.completed = 'no'
-					AND d.encoding = 'no'
-					AND d.uploading = 'no'
-				LIMIT
-					0, {$upload_limit}
-			");
+			$videos = $db->fetch(sprintf(
+				'
+					SELECT
+						d.*
+					FROM
+						`tbl_brightcove` AS d
+					WHERE
+						d.failed = "no"
+						AND d.completed = "no"
+						AND d.encoding = "no"
+						AND d.uploading = "no"
+					LIMIT
+						0, %d
+				',
+				$upload_limit
+			));
 			
 			if (is_array($videos) and !empty($videos)) foreach ($videos as $data) {
 				$name = basename($data['file']);
@@ -82,6 +87,20 @@
 					}
 				}
 				
+				###
+				# Delegate: BrightCove_VideoCreated
+				# Description: Allow data changes and api calls after a video is created.
+				$page->ExtensionManager->notifyMembers(
+					'BrightCove_VideoCreated',
+					'/publish/', array(
+						'api'		=> $api,
+						'data'		=> &$data,
+						'driver'	=> $driver,
+						'database'	=> $db,
+						'page'		=> $page
+					)
+				);
+				
 				$db->insert($data, 'tbl_brightcove', true);
 			}
 			
@@ -92,8 +111,13 @@
 				FROM
 					`tbl_brightcove` AS d
 				WHERE
-					d.failed = 'no'
-					AND d.completed = 'no'
+					(
+						d.failed = 'no'
+						AND d.completed = 'no'
+					)
+					OR (
+						d.edited = 'yes'
+					)
 			");
 			
 			if (is_array($videos) and !empty($videos)) foreach ($videos as $data) {
@@ -101,6 +125,7 @@
 				$data['completed'] = 'no';
 				$data['encoding'] = 'no';
 				$data['uploading'] = 'no';
+				$data['edited'] = 'no';
 				
 				if ($status == 'UPLOADING') {
 					$data['uploading'] = 'yes';
@@ -130,7 +155,23 @@
 					$data['failed'] = 'yes';
 				}
 				
+				###
+				# Delegate: BrightCove_VideoUpdated
+				# Description: Allow data changes and api calls after a video is created.
+				$page->ExtensionManager->notifyMembers(
+					'BrightCove_VideoUpdated',
+					'/publish/', array(
+						'api'		=> $api,
+						'data'		=> &$data,
+						'driver'	=> $driver,
+						'database'	=> $db,
+						'page'		=> $page
+					)
+				);
+				
 				$db->insert($data, 'tbl_brightcove', true);
+				$status = $driver->getVideoStatus($data['entry_id']);
+				$driver->setVideoStatus($data['entry_id'], $status);
 			}
 			
 			$template = "

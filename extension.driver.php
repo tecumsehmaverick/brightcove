@@ -219,9 +219,70 @@
 			}
 		}
 		
+		public function getAPI() {
+			return new Echove($this->getReadApiKey(), $this->getWriteApiKey());
+		}
+		
+		public function setVideoStatus($entry_id, $status) {
+			if (class_exists('Administration')) {
+				$symphony = Administration::instance();
+			}
+			
+			else {
+				$symphony = Frontend::instance();
+			}
+			
+			$db = $symphony->Database;
+			
+			// Update status field:
+			$field_id = $db->fetchVar('id', 0, sprintf(
+				'
+					SELECT
+						f.id
+					FROM
+						`tbl_fields` AS f,
+						`tbl_entries` AS e
+					WHERE
+						e.id = %d
+						AND f.parent_section = e.section_id
+						AND f.type = "brightcove_status"
+					LIMIT 1
+				',
+				$entry_id
+			));
+			
+			if (!$field_id) return false;
+			
+			$data = $db->fetchRow(0, sprintf(
+				'
+					SELECT
+						d.*
+					FROM
+						`tbl_entries_data_%d` AS d
+					WHERE
+						d.entry_id = %d
+					LIMIT 1
+				',
+				$field_id, $entry_id
+			));
+			
+			$data['entry_id'] = $entry_id;
+			$data['handle'] = $status;
+			$data['value'] = ucwords($status);
+			
+			return $db->insert($data, "tbl_entries_data_{$field_id}", true);
+		}
+		
 		public function getVideoStatus($entry_id) {
-			$admin = Administration::instance();
-			$db = $admin->Database;
+			if (class_exists('Administration')) {
+				$symphony = Administration::instance();
+			}
+			
+			else {
+				$symphony = Frontend::instance();
+			}
+			
+			$db = $symphony->Database;
 			$data = $db->fetchRow(0, sprintf(
 				"
 					SELECT
@@ -283,21 +344,25 @@
 			
 			// Show preview:
 			if ($row['completed'] == 'yes') {
-				$api = new Echove($this->getReadApiKey(), $this->getWriteApiKey());
-				$code = $api->embed('video', $this->getBackendPlayerId(), $row['video_id'], array(
-					'width'		=> 320,
-					'height'	=> 240
-				));
-				
 				$embed = new XMLElement('brightcove');
-				$embed->setValue($code);
+				$embed->setValue(sprintf(
+					'<object id="myExperience" class="BrightcoveExperience">
+						<param name="bgcolor" value="#FFFFFF" />
+						<param name="width" value="320" />
+						<param name="height" value="240" />
+						<param name="playerID" value="%s" />
+						<param name="@videoPlayer" value="%s" />
+						<param name="isVid" value="true" />
+						<param name="isUI" value="true" />
+					</object>',
+					$this->getFrontendPlayerId(),
+					$row['video_id']
+				));
 				$wrapper->appendChild($embed);
 			}
 		}
 		
 		public function appendMediaPreview($context) {
-			header('content-type: text/plain');
-			
 			$db = $context['parent']->Database;
 			$data = $context['data'];
 			$wrapper = $context['wrapper'];
@@ -320,17 +385,23 @@
 			
 			// Show preview:
 			if ($row['completed'] == 'yes') {
-				$api = new Echove($this->getReadApiKey(), $this->getWriteApiKey());
-				$code = $api->embed('video', $this->getBackendPlayerId(), $row['video_id'], array(
-					'width'		=> 320,
-					'height'	=> 240
-				));
-				
 				$this->apppendPublishHeaders();
 				
 				$embed = new XMLElement('div');
 				$embed->setAttribute('class', 'brightcove-video-embed');
-				$embed->setValue($code);
+				$embed->setValue(sprintf(
+					'<object id="myExperience" class="BrightcoveExperience">
+						<param name="bgcolor" value="#FFFFFF" />
+						<param name="width" value="320" />
+						<param name="height" value="240" />
+						<param name="playerID" value="%s" />
+						<param name="@videoPlayer" value="%s" />
+						<param name="isVid" value="true" />
+						<param name="isUI" value="true" />
+					</object>',
+					$this->getBackendPlayerId(),
+					$row['video_id']
+				));
 				$wrapper->appendChild($embed);
 			}
 		}

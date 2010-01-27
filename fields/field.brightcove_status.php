@@ -53,7 +53,7 @@
 		}
 		
 		public function canFilter() {
-			return false;
+			return true;
 		}
 		
 		public function canPrePopulate() {
@@ -61,7 +61,7 @@
 		}
 		
 		public function isSortable() {
-			return false;
+			return true;
 		}
 		
 	/*-------------------------------------------------------------------------
@@ -86,9 +86,7 @@
 			$label = Widget::Label($this->get('label'));
 			$message = new XMLElement('span');
 			
-			$value = $this->_driver->getVideoStatus($entry_id);
-			
-			switch ($value) {
+			switch ($data['handle']) {
 				case 'none':
 				case 'completed':
 					return;
@@ -97,7 +95,7 @@
 					$value = __('Video failed to upload.');
 					break;
 				case 'queued':
-					$value = __('Video is waiting in que.');
+					$value = __('Video is waiting in queue.');
 					break;
 				case 'encoding':
 					$value = __('Video is being encoded.');
@@ -107,9 +105,11 @@
 					break;
 			}
 			
-			$message->setValue($value);
-			$label->appendChild($message);
-			$wrapper->appendChild($label);
+			if (isset($value)) {
+				$message->setValue($value);
+				$label->appendChild($message);
+				$wrapper->appendChild($label);
+			}
 		}
 		
 	/*-------------------------------------------------------------------------
@@ -118,26 +118,40 @@
 		
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
 			$status = self::__OK__;
+			$db = Symphony::$Database;
+			$data = $db->fetchRow(0, sprintf(
+				'
+					SELECT
+						d.handle, d.value
+					FROM
+						`tbl_entries_data_%d` AS d
+					WHERE
+						entry_id = %d
+				',
+				$this->get('id'),
+				$entry_id
+			));
+			$id = $db->fetchVar('id', 0, sprintf(
+				'
+					SELECT
+						b.id
+					FROM
+						`tbl_brightcove` AS b
+					WHERE
+						entry_id = %d
+				',
+				$entry_id
+			));
 			
-			return null;
-		}
-		
-	/*-------------------------------------------------------------------------
-		Output:
-	-------------------------------------------------------------------------*/
-		
-		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
-			$value = __(ucfirst($this->_driver->getVideoStatus($entry_id)));
-			
-			return parent::prepareTableValue(
+			if (!$simulate and $id) $db->insert(
 				array(
-					'value'		=> General::sanitize($value)
-				), $link
+					'id'		=> $id,
+					'edited'	=> 'yes'
+				),
+				'tbl_brightcove', true
 			);
-		}
-		
-		public function getParameterPoolValue($data) {
-			return $data['handle'];
+			
+			return $data;
 		}
 	}
 	
